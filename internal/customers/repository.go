@@ -6,9 +6,15 @@ import (
 	"github.com/bootcamp-go/desafio-cierre-db.git/internal/domain"
 )
 
+type Top5products struct {
+	Description string `json:"desc"`
+	Count       int    `json:"count"`
+}
+
 type Repository interface {
 	Create(customers *domain.Customers) (int64, error)
 	ReadAll() ([]*domain.Customers, error)
+	GetTop5SoldPrd() ([]*Top5products, error)
 }
 
 type repository struct {
@@ -49,4 +55,26 @@ func (r *repository) ReadAll() ([]*domain.Customers, error) {
 		customers = append(customers, &customer)
 	}
 	return customers, nil
+}
+
+func (r *repository) GetTop5SoldPrd() ([]*Top5products, error) {
+	query := `select products.description, sum(sales.quantity) as ct from sales inner join products on sales.product_id = products.id
+	group by sales.product_id
+	order by ct desc
+	LIMIT 0, 3`
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]*Top5products, 0)
+	for rows.Next() {
+		row := Top5products{}
+		err := rows.Scan(&row.Description, &row.Count)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, &row)
+	}
+	return result, nil
 }
